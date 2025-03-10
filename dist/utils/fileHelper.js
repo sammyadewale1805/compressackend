@@ -11,7 +11,7 @@ const deleteFile = (filePath) => {
             fs_1.default.unlinkSync(filePath);
     }
     catch (error) {
-        console.error('Error deleting file:', error);
+        console.error('cant delete file:', error);
     }
 };
 exports.deleteFile = deleteFile;
