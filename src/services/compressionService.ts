@@ -17,31 +17,40 @@ const compressImage = async (inputPath: string, outputPath: string) => {
 };
 
 const compressFile = async (file: Express.Multer.File): Promise<string> => {
-  return new Promise(async (resolve, reject) => {
-    const isImage = file.mimetype.startsWith('image/');
-    const zipFilePath = path.join(__dirname, `../../compressed/${file.filename}.zip`);
-    const output = fs.createWriteStream(zipFilePath);
-    const archive = archiver('zip', { zlib: { level: 9 } });
-
-    archive.on('error', (err) => reject(err));
-    archive.pipe(output);
-
-    try {
-      let fileToZip = file.path;
-      
-      if (isImage) {
-        const compressedImagePath = path.join(__dirname, `../../uploads/compressed-${file.filename}`);
-        fileToZip = await compressImage(file.path, compressedImagePath);
+    return new Promise(async (resolve, reject) => {
+      try {
+        const isImage = file.mimetype.startsWith('image/');
+        
+        // Ensure directories exist
+        const compressedDir = path.join(__dirname, '../../compressed');
+        const uploadsDir = path.join(__dirname, '../../uploads');
+  
+        if (!fs.existsSync(compressedDir)) fs.mkdirSync(compressedDir, { recursive: true });
+        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+  
+        const zipFilePath = path.join(compressedDir, `${file.filename}.zip`);
+        const output = fs.createWriteStream(zipFilePath);
+        const archive = archiver('zip', { zlib: { level: 9 } });
+  
+        archive.on('error', (err) => reject(err));
+        archive.pipe(output);
+  
+        let fileToZip = file.path;
+  
+        if (isImage) {
+          const compressedImagePath = path.join(uploadsDir, `compressed-${file.filename}`);
+          fileToZip = await compressImage(file.path, compressedImagePath);
+        }
+  
+        archive.file(fileToZip, { name: file.originalname });
+        archive.finalize();
+  
+        output.on('close', () => resolve(zipFilePath));
+      } catch (error) {
+        reject(error);
       }
-
-      archive.file(fileToZip, { name: file.originalname });
-      archive.finalize();
-
-      output.on('close', () => resolve(zipFilePath));
-    } catch (error) {
-      reject(error);
-    }
-  });
-};
+    });
+  };
+  
 
 export default { compressFile };
