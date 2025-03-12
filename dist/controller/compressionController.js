@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const compressionService_1 = __importDefault(require("../services/compressionService"));
 const fs_1 = __importDefault(require("fs"));
+const util_1 = require("util");
+const fsUnlink = (0, util_1.promisify)(fs_1.default.unlink);
 const compressFile = async (req, res) => {
     try {
         if (!req.file) {
@@ -12,15 +14,26 @@ const compressFile = async (req, res) => {
             return;
         }
         const outputFilePath = await compressionService_1.default.compressFile(req.file);
-        res.download(outputFilePath, 'compressed-file.zip', () => {
-            fs_1.default.unlinkSync(outputFilePath); // Cleanup compressed ZIP file
-            if (req.file) {
-                fs_1.default.unlinkSync(req.file.path); // Cleanup original uploaded file
+        // Send file for download
+        res.download(outputFilePath, 'compressed-file.zip', (err) => {
+            if (err) {
+                console.error('Error during file download:', err);
             }
+            // Note: We're not deleting files here anymore as the service handles cleanup
+            // Files will be deleted after a timeout or by the periodic cleanup
         });
     }
     catch (error) {
         console.error('Compression Error:', error);
+        // Attempt to clean up the uploaded file if there's an error
+        if (req.file && req.file.path) {
+            try {
+                await fsUnlink(req.file.path);
+            }
+            catch (unlinkError) {
+                console.error('Error deleting uploaded file after compression failure:', unlinkError);
+            }
+        }
         res.status(500).json({ message: 'Compression failed' });
     }
 };

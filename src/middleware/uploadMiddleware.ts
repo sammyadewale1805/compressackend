@@ -1,11 +1,23 @@
 import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+
+// Ensure temp directory exists
+const uploadDir = path.join(__dirname, '../../temp/uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    cb(null, file.originalname);
+    // Generate a unique filename to prevent collisions
+    const uniqueSuffix = crypto.randomBytes(8).toString('hex');
+    const fileExt = path.extname(file.originalname);
+    cb(null, `${uniqueSuffix}${fileExt}`);
   },
 });
 
